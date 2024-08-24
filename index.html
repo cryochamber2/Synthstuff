@@ -1,0 +1,384 @@
+<html><head><base href="https://medieval-fantasy-synth.example.com/">
+<title>Medieval Fantasy Synth</title>
+<style>
+  body {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    font-family: 'Luminari', fantasy;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-image: url('https://source.unsplash.com/1600x900/?dark,forest');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .synth {
+    background-color: rgba(30, 30, 30, 0.8);
+    border: 2px solid #4a5738;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .knob {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #2a3c1e;
+    border: 2px solid #4a5738;
+    margin-bottom: 5px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .knob::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 50%;
+    background-color: #e0e0e0;
+    top: 5px;
+    left: 50%;
+    transform-origin: bottom;
+    transform: translateX(-50%) rotate(0deg);
+    transition: transform 0.2s;
+  }
+  .button {
+    background-color: #4a5738;
+    color: #e0e0e0;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Luminari', fantasy;
+    transition: background-color 0.3s;
+  }
+  .button:hover {
+    background-color: #5a6748;
+  }
+  .button.active {
+    background-color: #6a7758;
+  }
+  select {
+    background-color: #2a3c1e;
+    color: #e0e0e0;
+    border: 1px solid #4a5738;
+    padding: 5px;
+    border-radius: 5px;
+    font-family: 'Luminari', fantasy;
+  }
+  label, .pattern-display {
+    user-select: none;
+  }
+  .pattern-display {
+    margin-top: 20px;
+    font-size: 14px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="synth">
+  <h1>Medieval Fantasy Synth</h1>
+  <div class="controls">
+    <div class="control">
+      <div class="knob" id="volumeKnob"></div>
+      <label>Volume</label>
+    </div>
+    <div class="control">
+      <div class="knob" id="filterKnob"></div>
+      <label>Filter Cutoff</label>
+    </div>
+    <div class="control">
+      <div class="knob" id="resonanceKnob"></div>
+      <label>Resonance</label>
+    </div>
+    <div class="control">
+      <div class="knob" id="reverbKnob"></div>
+      <label>Reverb</label>
+    </div>
+    <div class="control">
+      <div class="knob" id="delayKnob"></div>
+      <label>Delay</label>
+    </div>
+    <div class="control">
+      <select id="delayTimeSelect">
+        <option value="8n">1/8</option>
+        <option value="4n">1/4</option>
+        <option value="3n">3/4</option>
+      </select>
+      <label>Delay Time</label>
+    </div>
+    <div class="control">
+      <select id="reverbTypeSelect">
+        <option value="hall">Hall</option>
+        <option value="chamber">Chamber</option>
+        <option value="cave">Cave</option>
+        <option value="cathedral">Cathedral</option>
+      </select>
+      <label>Reverb Type</label>
+    </div>
+    <div class="control">
+      <select id="soundSelect">
+        <option value="jewharp">Jew's Harp</option>
+        <option value="harp">Medieval Harp</option>
+        <option value="guitar">Medieval Guitar</option>
+        <option value="flute">Medieval Flute</option>
+        <option value="bells">Medieval Bells</option>
+      </select>
+      <label>Lead Sound</label>
+    </div>
+    <div class="control">
+      <select id="bassSoundSelect">
+        <option value="deepBass">Deep Bass</option>
+        <option value="woodenBass">Wooden Bass</option>
+        <option value="hornBass">Horn Bass</option>
+      </select>
+      <label>Bass Sound</label>
+    </div>
+  </div>
+  <div>
+    <button class="button" id="playButton">Play</button>
+    <button class="button" id="stopButton">Stop</button>
+    <button class="button" id="patternButton">Next Pattern</button>
+    <button class="button" id="toggleLayersButton">Toggle Layers</button>
+  </div>
+  <div class="pattern-display" id="patternDisplay"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>
+const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+const bassSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+const filter = new Tone.Filter(1000, "lowpass").connect(Tone.Destination);
+const reverb = new Tone.Reverb(2).connect(filter);
+const delay = new Tone.FeedbackDelay("8n", 0.5).connect(reverb);
+
+synth.connect(delay);
+bassSynth.connect(delay);
+
+const volumeKnob = document.getElementById('volumeKnob');
+const filterKnob = document.getElementById('filterKnob');
+const resonanceKnob = document.getElementById('resonanceKnob');
+const reverbKnob = document.getElementById('reverbKnob');
+const delayKnob = document.getElementById('delayKnob');
+const delayTimeSelect = document.getElementById('delayTimeSelect');
+const reverbTypeSelect = document.getElementById('reverbTypeSelect');
+const soundSelect = document.getElementById('soundSelect');
+const bassSoundSelect = document.getElementById('bassSoundSelect');
+const playButton = document.getElementById('playButton');
+const stopButton = document.getElementById('stopButton');
+const patternButton = document.getElementById('patternButton');
+const toggleLayersButton = document.getElementById('toggleLayersButton');
+const patternDisplay = document.getElementById('patternDisplay');
+
+let isPlaying = false;
+let currentInterval;
+let bothLayersActive = true;
+
+const dorianScale = ['D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4'];
+
+function generateArpeggioPattern() {
+  const pattern = [];
+  const rootNote = Math.random() < 0.5 ? 'D3' : 'A3';
+  pattern.push(rootNote);
+  for (let i = 1; i < 8; i++) {
+    pattern.push(dorianScale[Math.floor(Math.random() * dorianScale.length)]);
+  }
+  return pattern;
+}
+
+let currentPattern = generateArpeggioPattern();
+
+function updatePatternDisplay() {
+  patternDisplay.textContent = `Current Pattern: ${currentPattern.join(', ')}`;
+}
+
+function playArpeggio() {
+  let index = 0;
+  currentInterval = setInterval(() => {
+    if (isPlaying) {
+      if (bothLayersActive) {
+        synth.triggerAttackRelease(currentPattern[index], '8n');
+      }
+      if (index === 0 || index === 4) {
+        const bassNote = Tone.Frequency(currentPattern[index]).transpose(-12).toNote();
+        if (bothLayersActive) {
+          bassSynth.triggerAttackRelease(bassNote, '4n');
+        }
+      }
+      index = (index + 1) % currentPattern.length;
+    }
+  }, Tone.Time('8n').toMilliseconds());
+}
+
+function stopCurrentInterval() {
+  if (currentInterval) {
+    clearInterval(currentInterval);
+  }
+}
+
+playButton.addEventListener('click', () => {
+  isPlaying = true;
+  playButton.classList.add('active');
+  stopButton.classList.remove('active');
+  playArpeggio();
+});
+
+stopButton.addEventListener('click', () => {
+  isPlaying = false;
+  stopCurrentInterval();
+  playButton.classList.remove('active');
+  stopButton.classList.add('active');
+});
+
+patternButton.addEventListener('click', () => {
+  currentPattern = generateArpeggioPattern();
+  updatePatternDisplay();
+  if (isPlaying) {
+    stopCurrentInterval();
+    playArpeggio();
+  }
+});
+
+toggleLayersButton.addEventListener('click', () => {
+  bothLayersActive = !bothLayersActive;
+  toggleLayersButton.classList.toggle('active');
+});
+
+function handleKnobInteraction(knob, callback) {
+  let isDragging = false;
+  let startY;
+
+  knob.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startY = e.clientY;
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      const deltaY = startY - e.clientY;
+      const rotation = Math.min(Math.max(deltaY, -90), 90);
+      knob.style.transform = `rotate(${rotation}deg)`;
+      callback((rotation + 90) / 180);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+}
+
+handleKnobInteraction(volumeKnob, (value) => {
+  synth.volume.value = Tone.gainToDb(value);
+  bassSynth.volume.value = Tone.gainToDb(value);
+});
+
+handleKnobInteraction(filterKnob, (value) => {
+  filter.frequency.value = value * 5000 + 50; // Lowpass range: 50Hz to 5050Hz
+});
+
+handleKnobInteraction(resonanceKnob, (value) => {
+  filter.Q.value = value * 20;
+});
+
+handleKnobInteraction(reverbKnob, (value) => {
+  reverb.wet.value = value;
+});
+
+handleKnobInteraction(delayKnob, (value) => {
+  delay.wet.value = value;
+});
+
+delayTimeSelect.addEventListener('change', (e) => {
+  delay.delayTime.value = e.target.value;
+});
+
+reverbTypeSelect.addEventListener('change', (e) => {
+  const reverbTypes = {
+    hall: 2,
+    chamber: 1.5,
+    cave: 3,
+    cathedral: 4
+  };
+  reverb.decay = reverbTypes[e.target.value];
+});
+
+const synthPresets = {
+  jewharp: {
+    oscillator: {type: 'triangle'},
+    envelope: {attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5}
+  },
+  harp: {
+    oscillator: {type: 'triangle'},
+    envelope: {attack: 0.02, decay: 0.2, sustain: 0.4, release: 0.8}
+  },
+  guitar: {
+    oscillator: {type: 'sine'},
+    envelope: {attack: 0.05, decay: 0.1, sustain: 0.3, release: 0.7}
+  },
+  flute: {
+    oscillator: {type: 'sine'},
+    envelope: {attack: 0.1, decay: 0.2, sustain: 0.6, release: 0.5}
+  },
+  bells: {
+    oscillator: {type: 'sine'},
+    envelope: {attack: 0.01, decay: 0.5, sustain: 0.1, release: 1.5}
+  }
+};
+
+const bassPresets = {
+  deepBass: {
+    oscillator: {type: 'sine'},
+    envelope: {attack: 0.05, decay: 0.2, sustain: 0.8, release: 1}
+  },
+  woodenBass: {
+    oscillator: {type: 'triangle'},
+    envelope: {attack: 0.02, decay: 0.1, sustain: 0.5, release: 0.8}
+  },
+  hornBass: {
+    oscillator: {type: 'sawtooth'},
+    envelope: {attack: 0.1, decay: 0.3, sustain: 0.4, release: 0.6}
+  }
+};
+
+soundSelect.addEventListener('change', (e) => {
+  const selectedSound = synthPresets[e.target.value];
+  synth.set(selectedSound);
+});
+
+bassSoundSelect.addEventListener('change', (e) => {
+  const selectedBassSound = bassPresets[e.target.value];
+  bassSynth.set(selectedBassSound);
+});
+
+// Apply initial lowpass filter
+filter.frequency.value = 2000;
+
+// Start audio context on user interaction
+document.body.addEventListener('click', () => {
+  if (Tone.context.state !== 'running') Tone.context.resume();
+});
+
+// Initial pattern display
+updatePatternDisplay();
+</script>
+</body>
+</html>
